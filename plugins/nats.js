@@ -1,20 +1,19 @@
 import Vue from 'vue'
-// import vueNats from 'vue-nats'
-import { connect } from 'nats.ws/nats'
+import nats from '../utils/nats'
 
 const vueNats = {
-  install: (VueInst, opt = {}) => {
-    const nats = connect(opt)
+  install: async (VueInst, opt = {}) => {
+    // const nats = await connect(opt)
+    // const nats = new Nats(opt)
     VueInst.prototype.$nats = nats
-    // VueInst.prototype.$indy = axiosref(cfg.INDYSERVER)
-    // console.log('install axios', axios)
+    console.log('connected', await nats.connect())
   },
 }
 
 Vue.use(vueNats, {
-  url: 'ws://highmaru.com:4223',
-  json: true,
-  reconnect: true,
-  maxReconnectAttempts: -1,
-  reconnectTimeWait: 1000,
+  // servers: ['wss://highmaru.com:4223'],
+  // json: true,
+  // reconnect: true,
+  // maxReconnectAttempts: -1,
+  // reconnectTimeWait: 1000,
 })
