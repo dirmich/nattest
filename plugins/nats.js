@@ -6,7 +6,7 @@ const vueNats = {
     // const nats = await connect(opt)
     // const nats = new Nats(opt)
     VueInst.prototype.$nats = nats
-    console.log('connected', await nats.connect())
+    console.log('connected', nats.connect())
   },
 }
 

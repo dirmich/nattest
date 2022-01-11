@@ -9,8 +9,9 @@
           $nats.close()
           subscribe = false
         "
-        >{{ $nats.isClosed() ? 'Open' : 'Close' }}</el-button
       >
+        {{ $nats.isConnected ? 'Close' : 'Open' }}
+      </el-button>
     </el-row>
     <el-row type="flex" justify="center">
       <el-col :span="6">
@@ -43,6 +44,10 @@ export default {
     //     console.log('Server reading:', msg)
     //   },
     // })
+    // this.$nats.onOpen = () => {
+    //   this.subscribe('calc.add', ({ a, b }) => ({ result: a + b }))
+    //   this.unsubscribe('calc.add', 2)
+    // }
   },
   data() {
     return {
@@ -55,14 +60,14 @@ export default {
   methods: {
     toggle() {
       if (this.subscribe) {
-        this.$nats.unsub('>')
+        this.$nats.unsubscribe('calc.*')
       } else {
-        this.$nats.sub('>', this.onMsg)
+        this.$nats.subscribe('calc.*', this.onMsg)
       }
       this.subscribe = !this.subscribe
     },
     async onMsg(subject, data, respond) {
-      console.log('Recv:', subject, data)
+      console.log('Recv:', subject, data, respond)
       this.messages.push({
         subject,
         data,
@@ -73,13 +78,13 @@ export default {
         case 'calc.add':
           {
             const result = data.a + data.b
-            if (respond) respond({ result })
+            if (respond) return { result }
           }
           break
         case 'calc.sub':
           {
-            const result = data.a - data.b
-            if (respond) respond({ result })
+            console.log(data, result)
+            if (respond) return { result }
           }
           break
       }
