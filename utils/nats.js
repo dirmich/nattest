@@ -39,6 +39,7 @@ class Nats {
     this.enc = new TextEncoder()
     this.dec = new TextDecoder('utf-8')
     this.sid = 1
+    this.rid = 1
     this.opt = { ...defaultOpt, ...opt }
     this.isConnected = false
   }
@@ -68,25 +69,37 @@ class Nats {
     this.sock.send(this.conv(payload))
   }
   sendInfo() {
-    const str =
-      'CONNECT {"verbose":false,"pedantic":false,"tls_required":false,"name":"","lang":"go","version":"1.2.2","protocol":1}\r\n'
     this.send(`CONNECT ${JSON.stringify(this.opt)}`)
   }
-  publish(subject, data, cb) {
-    this.send()
+  publish(subject, data) {
+    this.send(`PUB ${subject}`, data)
   }
-  subscribe(subject, cb) {
+  subscribe(subject, cb = null) {
     if (this.hash[subject]) return
     this.hash[subject] = this.sid
-    const callback = typeof cb === 'function' ? cb : () => cb
-    this.subs[this.sid] = { cb: callback, recv: false }
+    if (cb) {
+      const callback = typeof cb === 'function' ? cb : () => cb
+      this.subs[this.sid] = { cb: callback, recv: false }
+    }
     this.send(`SUB ${subject} ${this.sid}`)
     this.sid++
   }
+  request(subject, data) {
+    this.send(`PUB ${subject} INBOX#${this.rid}`, data)
+
+    return new Promise((resolve, reject) => {
+      const ts = setTimeout(() => reject(false), 3000)
+      this.subscribe(`INBOX#${this.rid}`, (subject, data, reply) => {
+        clearTimeout(ts)
+        resolve(data)
+        return false
+      })
+      this.unsubscribe(`INBOX#${this.rid}`, 1)
+      this.rid++
+    })
+  }
   respond(m, data) {
-    const cmd = `PUB ${m[4]}`
-    // console.log('response', cmd, m)
-    this.send(cmd, data)
+    this.send(`PUB ${m[4]}`, data)
   }
   checkRecv(sid) {
     if (this.subs[sid]) {
@@ -119,7 +132,6 @@ class Nats {
   }
   setEvents(s) {
     s.onopen = () => {
-      console.log('connected ', s)
       this.isConnected = true
       if (this.onOpen) {
         this.onOpen({
@@ -151,8 +163,9 @@ class Nats {
           this.send('PONG')
           break
         case CMD.MSG:
+          if (this.onMessage && !msg.respond)
+            this.onMessage(msg.subject, msg.param)
       }
-      if (this.onMessage) this.onMessage(msg)
     }
   }
   async parse(str) {
@@ -165,13 +178,12 @@ class Nats {
       cmd = CMD.MSG
       subject = m[1]
       param = m[6] ? JSON.parse(m[6]) : null
+      // console.log('M]', m)
       const sub = this.subs[parseInt(m[2])]
       if (sub) {
-        resp = true
+        resp = !!m[3]
         const data = await sub.cb(subject, param, resp)
-        this.respond(m, data)
-      } else {
-        console.log('NOTFOUND]', m[2], this.subs)
+        if (m[3]) this.respond(m, data)
       }
     } else if ((m = OK.exec(str)) !== null) {
       cmd = CMD.OK

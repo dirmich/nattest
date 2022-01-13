@@ -48,6 +48,7 @@ export default {
     //   this.subscribe('calc.add', ({ a, b }) => ({ result: a + b }))
     //   this.unsubscribe('calc.add', 2)
     // }
+    this.$nats.onMessage = this.onMessage
   },
   data() {
     return {
@@ -62,12 +63,15 @@ export default {
       if (this.subscribe) {
         this.$nats.unsubscribe('calc.*')
       } else {
-        this.$nats.subscribe('calc.*', this.onMsg)
+        this.$nats.subscribe('calc.*', this.onRequest)
       }
       this.subscribe = !this.subscribe
     },
-    async onMsg(subject, data, respond) {
-      console.log('Recv:', subject, data, respond)
+    async onMessage(subject, data) {
+      console.log('Recv]', subject, data)
+    },
+    async onRequest(subject, data, respond) {
+      console.log('Req:', subject, data, respond)
       this.messages.push({
         subject,
         data,
